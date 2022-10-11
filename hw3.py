@@ -1,14 +1,15 @@
 import numpy as np
 
 def babyr_enc(block, key):
-    round_keys = [
-        [6, 11, 5, 13],
-        [6, 5, 3, 8],
-        [1, 14, 2, 6],
-        [7, 13, 5, 11],
-        [0, 3, 5, 8],
-    ]
-    result = [4, 7, 15, 8]
+    # round_keys = [
+    #     [6, 11, 5, 13],
+    #     [6, 5, 3, 8],
+    #     [1, 14, 2, 6],
+    #     [7, 13, 5, 11],
+    #     [0, 3, 5, 8],
+    # ]
+    round_keys = getRoundKeys(key)
+    result = xor(hexToBlock(block), round_keys[0])
     print(result)
 
     result = babyr_enc_help(result, round_keys[1], 1)
@@ -18,8 +19,17 @@ def babyr_enc(block, key):
     result = babyr_enc_help(result, round_keys[3], 1)
     print(result)
     result = babyr_enc_help(result, round_keys[4], 0)
-    print(result)
-
+    print("round 4", result)
+    result = binToBlock(result)
+    dic = {10: 'a', 11: 'b', 12: 'c', 13: 'd', 14: 'e', 15: 'f'}
+    resultFinal = ""
+    for each in result:
+        print(each)
+        if each in dic.keys():
+            resultFinal = resultFinal + dic[each]
+        else:
+            resultFinal = resultFinal + str(each)
+    return resultFinal
 
 def babyr_enc_help(block, key, flag):
     temp = np.array(block).copy()
@@ -30,7 +40,7 @@ def babyr_enc_help(block, key, flag):
     print(temp)
     if flag is 0:
         temp = fr(blockToBin(temp), np.array(key))
-        return "".join(str(i) for i in binToBlock(temp))
+        return temp
     temp = ft(temp)
     print(temp)
     temp = fr(temp, np.array(key))
@@ -126,13 +136,29 @@ def reverse(w):
     result.append(w[0])
     return np.array(result)
 
+def xor(x1, x2):
+    def xorEach(a1, a2):
+        return a1 ^ a2
+    return np.array([each ^ x2[i] for i, each in enumerate(x1)])
+
 def getRoundKeys(key):
     temp = np.array(hexToBlock(key)).reshape(2, 2)
     result = []
     result.append(temp[0])
     result.append(temp[1])
-    print(fs(reverse(result[1])), result[0])
-    # print(np.array(result))
+    result.append(xor(xor(fs(reverse(result[1])), result[0]), np.array([1,0])))
+    result.append(xor(result[1], result[2]))
+    result.append(xor(xor(fs(reverse(result[3])), result[2]), np.array([2,0])))
+    result.append(xor(result[3], result[4]))
+    result.append(xor(xor(fs(reverse(result[5])), result[4]), np.array([4,0])))
+    result.append(xor(result[5], result[6]))
+    result.append(xor(xor(fs(reverse(result[7])), result[6]), np.array([8,0])))
+    result.append(xor(result[7], result[8]))
+    resultFinal = []
+    for i in range(0, len(result), 2):
+        resultFinal.append(np.concatenate((result[i], result[i + 1]), axis=1))
+    print(resultFinal)
+    return np.array(resultFinal)
 
 def hexToBlock(hex):
     result = []
@@ -158,9 +184,8 @@ def binToBlock(bin):
     temp = "".join(str(i) for i in list(np.transpose(bin).ravel()))
     return hexToBlock(hex(int(temp, 2))[2:]);
 
-block = np.array([2, 12, 10, 5])
-key = np.array([6, 11, 5, 13])
-
-# babyr_enc(block, key)
-getRoundKeys("6b5d")
+print("result is", babyr_enc("2ca5", "6b5d"))
+print("result is", babyr_enc("5b69", "87b2"))
+print("result is", babyr_enc("8f57", "5274"))
+# getRoundKeys("6b5d")
 # babyr_dec(block, key)
