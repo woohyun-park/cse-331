@@ -1,30 +1,17 @@
 import numpy as np
 
 def babyr_enc(block, key):
-    # round_keys = [
-    #     [6, 11, 5, 13],
-    #     [6, 5, 3, 8],
-    #     [1, 14, 2, 6],
-    #     [7, 13, 5, 11],
-    #     [0, 3, 5, 8],
-    # ]
     round_keys = getRoundKeys(key)
     result = xor(hexToBlock(block), round_keys[0])
-    print(result)
 
     result = babyr_enc_help(result, round_keys[1], 1)
-    print(result)
     result = babyr_enc_help(result, round_keys[2], 1)
-    print(result)
     result = babyr_enc_help(result, round_keys[3], 1)
-    print(result)
     result = babyr_enc_help(result, round_keys[4], 0)
-    print("round 4", result)
     result = binToBlock(result)
     dic = {10: 'a', 11: 'b', 12: 'c', 13: 'd', 14: 'e', 15: 'f'}
     resultFinal = ""
     for each in result:
-        print(each)
         if each in dic.keys():
             resultFinal = resultFinal + dic[each]
         else:
@@ -33,25 +20,19 @@ def babyr_enc(block, key):
 
 def babyr_enc_help(block, key, flag):
     temp = np.array(block).copy()
-    print(temp) # 4 7 f 8
     temp = fs(temp) 
-    print(temp) # 8 c d 5
     temp = fa(temp)
-    print(temp)
     if flag is 0:
         temp = fr(blockToBin(temp), np.array(key))
         return temp
     temp = ft(temp)
-    print(temp)
     temp = fr(temp, np.array(key))
-    print(temp)
     return binToBlock(temp)
 
 def babyr_dec(block, key):
     print("dec")
 
 def fs(block):
-    print("fs")
     table = {
         0: 10,
         1: 4,
@@ -73,10 +54,8 @@ def fs(block):
     def find(elem):
         return table[elem]
     return np.array(list(map(find, block)))
-    # print(np.transpose(block.reshape(2, 2)))
 
 def fsi(block):
-    print("fs")
     table = {
         0: 12,
         1: 13,
@@ -100,7 +79,6 @@ def fsi(block):
     return np.array(list(map(find, block)))
 
 def fa(block):
-    print("fa")
     result = block.copy()
     temp = result[3]
     result[3] = result[1]
@@ -108,7 +86,6 @@ def fa(block):
     return result
 
 def ft(block):
-    print("ft")
     t = np.array([
         1, 0, 1, 0, 0, 0, 1, 1,
         1, 1, 0, 1, 0, 0, 0, 1,
@@ -122,7 +99,6 @@ def ft(block):
     return t.dot(blockToBin(block)) % 2
 
 def fr(block, key):
-    print("fr")
     result = []
     blockTemp = block.ravel()
     keyTemp = blockToBin(key.ravel()).ravel()
@@ -157,7 +133,6 @@ def getRoundKeys(key):
     resultFinal = []
     for i in range(0, len(result), 2):
         resultFinal.append(np.concatenate((result[i], result[i + 1]), axis=1))
-    print(resultFinal)
     return np.array(resultFinal)
 
 def hexToBlock(hex):
@@ -184,8 +159,6 @@ def binToBlock(bin):
     temp = "".join(str(i) for i in list(np.transpose(bin).ravel()))
     return hexToBlock(hex(int(temp, 2))[2:]);
 
-print("result is", babyr_enc("2ca5", "6b5d"))
-print("result is", babyr_enc("5b69", "87b2"))
-print("result is", babyr_enc("8f57", "5274"))
-# getRoundKeys("6b5d")
-# babyr_dec(block, key)
+print(babyr_enc("2ca5", "6b5d")) # 6855
+print(babyr_enc("5b69", "87b2")) # 5d4a
+print(babyr_enc("8f57", "5274")) # 4c8e
