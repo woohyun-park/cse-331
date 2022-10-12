@@ -1,101 +1,98 @@
 import numpy as np
-import CYPHER
-import CONVERT
+import CYPHER, CONVERT, PERFORM, HELPER
 
-TABLE = CYPHER.table_o
-MATRIX = CYPHER.matrix_o
+### Implementations
 
 def babyr_enc(block, key):
     # Get round keys
-    round_keys = get_round_keys(key)
+    roundKeys = HELPER.get_roundKeys(key)
 
     # Perform encryption
-    round_0 = xor(CONVERT.hexToBlock(block), round_keys[0])
-    round_1 = babyr_enc_help(round_0, round_keys[1], 1)
-    round_2 = babyr_enc_help(round_1, round_keys[2], 1)
-    round_3 = babyr_enc_help(round_2, round_keys[3], 1)
-    round_4 = babyr_enc_help(round_3, round_keys[4], 0)
+    result = CONVERT.hexStr_to_decBlock(block)
+    for i in range(5):
+        result = babyr_enc_help(result, roundKeys[i], i)
 
-    # Convert result to hex str
-    return CONVERT.binToHexStr(round_4)
+    return CONVERT.decBlock_to_hexStr(result)
 
+# decBlock -> decBlock
 def babyr_enc_help(block, key, flag):
-    temp = np.array(block).copy()
-    temp = apply_s(temp, TABLE) 
-    temp = apply_a(temp)
     if flag is 0:
-        temp = fr(blockToBin(temp), np.array(key))
-        return temp
-    temp = mult_t(temp, MATRIX)
-    temp = fr(temp, np.array(key))
-    return CONVERT.binToBlock(temp)
+        return PERFORM.add_roundKey(block, key)
+    result = PERFORM.apply_s(block, CYPHER.table_o)
+    result = PERFORM.apply_a(result)
+    if flag is 4:
+        return PERFORM.add_roundKey(result, key)
+    result = PERFORM.mult_t(result, CYPHER.matrix_o)
+    return PERFORM.add_roundKey(result, np.array(key))
 
 def babyr_dec(block, key):
-    TABLE = CYPHER.table_i
-    MATRIX = CYPHER.matrix_i
+    # Get reversed round keys
+    roundKeys = np.flipud(HELPER.get_roundKeys(key))
 
-def apply_s(block, table):
-    return np.array(list(map(lambda elem: table[elem], block)))
+    # Perform decrpytion
+    result = block
+    for i in range(5):
+        result = babyr_dec_help(CONVERT.hexStr_to_decBlock(result), roundKeys[i], i)
+    
+    return CONVERT.decBlock_to_hexStr(result);
 
-def apply_a(block):
-    result = block.copy()
-    temp = result[3]
-    result[3] = result[1]
-    result[1] = temp
+# decBlock -> decBlock
+def babyr_dec_help(block, key, flag):
+    result = HELPER.add(CONVERT.hexStr_to_decBlock(block), key)
+    if flag is 4:
+        return result
+    if flag is not 0:
+        result = PERFORM.mult_t(result, CYPHER.matrix_i)
+    result = PERFORM.apply_a(result)
+    result = PERFORM.apply_s(result, CYPHER.table_i)
     return result
 
-def mult_t(block, matrix):
-    return matrix.dot(blockToBin(block)) % 2
+### Test Functions
 
-def fr(block, key):
-    result = []
-    blockTemp = block.ravel()
-    keyTemp = blockToBin(key.ravel()).ravel()
-    for i, each in enumerate(blockTemp):
-        result.append(each ^ keyTemp[i])
-    return np.array(result).reshape(8, 2)
+# Toggle DETAIL for printing the details
+DETAIL = False
 
-def reverse(w):
-    result = []
-    result.append(w[1])
-    result.append(w[0])
-    return np.array(result)
+ENC = 0
+DEC = 1
 
-def xor(x1, x2):
-    def xorEach(a1, a2):
-        return a1 ^ a2
-    return np.array([each ^ x2[i] for i, each in enumerate(x1)])
+def test_each(block, key, result, operation):
+    if operation is ENC:
+        if DETAIL:
+            print('ENC, {0} + {1}:'.format(block, key))
+        temp = babyr_enc(block, key)
+        if temp == result:
+            print("Correct!")
+        else:
+            print("Incorrect: {0} should be {1}".format(temp, result))
+    elif operation is DEC:
+        if DETAIL:
+            print('DEC, {0} + {1}:'.format(block, key))
+        temp = babyr_dec(block, key)
+        if temp == result:
+            print("Correct!")
+        else:
+            print("Incorrect: {0} should be {1}".format(temp, result))
 
-def get_round_keys(key):
-    temp = np.array(CONVERT.hexToBlock(key)).reshape(2, 2)
-    result = []
-    result.append(temp[0])
-    result.append(temp[1])
-    result.append(xor(xor(apply_s(reverse(result[1]), TABLE), result[0]), np.array([1,0])))
-    result.append(xor(result[1], result[2]))
-    result.append(xor(xor(apply_s(reverse(result[3]), TABLE), result[2]), np.array([2,0])))
-    result.append(xor(result[3], result[4]))
-    result.append(xor(xor(apply_s(reverse(result[5]), TABLE), result[4]), np.array([4,0])))
-    result.append(xor(result[5], result[6]))
-    result.append(xor(xor(apply_s(reverse(result[7]), TABLE), result[6]), np.array([8,0])))
-    result.append(xor(result[7], result[8]))
-    resultFinal = []
-    for i in range(0, len(result), 2):
-        resultFinal.append(np.concatenate((result[i], result[i + 1]), axis=1))
-    return np.array(resultFinal)
+def test_enc():
+    print("TESTING ENCRYPTION")
+    test_each("2ca5", "6b5d", "6855", ENC)
+    test_each("5b69", "87b2", "5d4a", ENC)
+    test_each("8f57", "5274", "4c8e", ENC)
+    test_each("74e9", "9440", "bf1a", ENC)
+    test_each("bf67", "cb37", "b9d8", ENC)
+    print("")
 
-def blockToBin(block):
-    result = []
-    for each in block:
-        temp = [int(d) for d in str(bin(each))[2:]]
-        while len(temp) < 4:
-            temp.insert(0, 0)
-        result.append(temp)
-    return np.transpose(np.array(result).ravel().reshape(2, 8))
+def test_dec():
+    print("TESTING DECRPYTION")
+    test_each("6855", "6b5d", "2ca5", DEC)
+    test_each("bf1a", "9440", "74e9", DEC)
+    test_each("b9d8", "cb37", "bf67", DEC)
+    test_each("5d4a", "87b2", "5b69", DEC)
+    test_each("4c8e", "5274", "8f57", DEC)
+    print("")
 
-print(babyr_enc("2ca5", "6b5d")) # 6855
-assert babyr_enc("2ca5", "6b5d") == "6855", "Incorrect"
-print(babyr_enc("5b69", "87b2")) # 5d4a
-assert babyr_enc("5b69", "87b2") == "5d4a", "Incorrect"
-print(babyr_enc("8f57", "5274")) # 4c8e
-assert babyr_enc("8f57", "5274") == "4c8e", "Incorrect"
+def main():
+    test_enc()
+    test_dec()
+
+main()
